@@ -3,6 +3,8 @@ from PIL import Image, ImageDraw, ImageFont
 import textwrap
 import numpy as np
 import matplotlib.pyplot as plt
+import imageio as io
+from Handler import hPipe, hImageIo
 
 def writeTextOnImage(im, 
                      text, 
@@ -169,27 +171,33 @@ class Title:
         return self.slideshow
         
 
+
 class MovieMaker:
-    def __init__(self, filename, fps=30, codec='libx264', quality=26, shape=None, FFMPEG_DIR=r"C:\ffmpeg\bin"):
+    def __init__(self, filename, handler='pipe', fps=30, codec='libx264', quality=26, shape=None, FFMPEG_DIR=r"C:\ffmpeg\bin"):
         self.FFMPEG_DIR = FFMPEG_DIR
         self.FFMPEG_EXE = FFMPEG_DIR+"\\ffmpeg.exe"
         
         assert (quality >= 0 and quality <= 63), "Quality min: 0, max: 63"
-        
-        self.pipe = None
-        self.shape = shape
+
+        ##### Settings #####
         self.filename = filename
+        self.shape = shape
         self.fps = fps
         self.codec = codec
         self.crf = quality
-        self.cache = []
-        
+
+        ##### Cache #####
+        self.cache = [] # now numpy arrays are cached, not strings
+
+        self.handler = handler
+        self.h = None
+
     def clearCache(self):
         self.cache = []
         return True
     
     def _get_image_from_figure(self, fig, autoclose=True):
-        fig.canvas.draw()
+        fig.canvas.draw() 
         rgb = fig.canvas.tostring_rgb()
         shape = fig.canvas.get_width_height()[::-1] + (3,)
         
@@ -202,31 +210,46 @@ class MovieMaker:
         if autoclose:
             plt.close(fig)
             
-        return rgb
+        # Returns numpy array
+        return np.frombuffer(rgb, dtype=np.uint8).reshape(shape)
     
     def addFigureToCache(self, fig, autoclose=True):
         self.cache.append(self._get_image_from_figure(fig, autoclose))
 
     def addImageToCache(self, im):
-        self.cache.append(im.tobytes())    
+        self.cache.append(im)   
+
+    def initHandler(self):
+        if self.handler == 'io' or self.handler == 'imageio':
+            self.h = hImageIo(self.filename)
+            
+        else:
+            print(self.shape)
+            self.h = hPipe(self.filename, 
+                            shape=self.shape, 
+                            fps=self.fps, 
+                            codec=self.codec, 
+                            quality=self.crf, 
+                            FFMPEG_DIR=self.FFMPEG_DIR)
+
+        self.h.open()
+         
     
     def writeFigure(self, fig, autoclose=True):
         im = self._get_image_from_figure(fig, autoclose)
 
-        if self.pipe == None:
-            self.openPipe()
-        
-        self.pipe.stdin.write(im)
+        if self.h is None:
+            self.initHandler()
+
+        self.h.write(im)
         
     def writeImage(self, im):
         assert im.shape[-1] == 3, "Image is not RGB ({})".format(im.shape)
         
-        b = im.tobytes()
-        
-        if self.pipe == None:
-            self.openPipe()
-            
-        self.pipe.stdin.write(b)
+        if self.h is None:
+            self.initHandler()
+
+        self.h.write(im)
         
     def addTitle(self, slideshow, to_beginning=True):
         if self.shape is None:
@@ -235,7 +258,7 @@ class MovieMaker:
         cache = []
         
         for s in slideshow:
-            cache.append(s.tobytes())
+            cache.append(s)
             
         if to_beginning:
             self.cache = cache + self.cache
@@ -243,40 +266,15 @@ class MovieMaker:
         else:
             self.cache.extend(cache)
         
-    def writeCache(self, close_pipe=True):
-        if self.pipe == None:
-            self.openPipe()
-            
+    def writeCache(self, close_pipe=True, subrectangles=True):
+        if self.h is None:
+            self.initHandler()
+
         for c in self.cache:
-            self.pipe.stdin.write(c)
-            
-        if close_pipe:
-            self.close()
-        
-    def close(self):
-        if self.pipe:
-            self.pipe.stdin.close()
-            self.pipe = None
-        
-    def openPipe(self):
-        command = [self.FFMPEG_EXE,
-            '-y', # (optional) overwrite output file if it exists
-            '-f', 'rawvideo',
-            '-vcodec','rawvideo',
-            '-s', '{:d}x{:d}'.format(self.shape[1], self.shape[0]), # size of one frame
-            '-pix_fmt', 'rgb24',
-            '-r', '{}'.format(self.fps), # frames per second
-            '-i', '-', # The imput comes from a pipe
-            '-an', # Tells FFMPEG not to expect any audio
-            '-vcodec', self.codec,
-            '-crf', str(self.crf),
-            self.filename]
+            self.h.write(c)
 
-        self.pipe = sp.Popen(command, 
-                        stdout=sp.PIPE, 
-                        stdin=sp.PIPE, 
-                        bufsize=10**8)
-
+        self.h.close()
+        
     def cacheToArray(self):
         arr = []
 
@@ -286,11 +284,20 @@ class MovieMaker:
 
         return np.array(arr, dtype=np.uint8)
 
-    def convertMovie2GIF(self, filename=None, skip=None, duration=None, fps=10):
-        if filename is None:
-            filename = self.filename
+    def toGIF(self, gif_filename=None, method='pipe'):
+        if gif_filename is None:
+            gif_filename = self.filename.replace('mp4','gif')
 
-        command = [self.FFMPEG_EXE,
+        movie2GIF(self.filename, gif_filename, method=method, fps=self.fps)
+
+def movie2GIF(src, out, method='pipe', skip=None, duration=None, fps=10, subrectangles=True, FFMPEG_EXE=r"C:\ffmpeg\bin\ffmpeg.exe"):
+    
+    if method == 'io':
+        frames = io.mimread(src)
+        io.mimwrite(out, frames, fps=fps, subrectangles=subrectangles)
+
+    else:
+        command = [FFMPEG_EXE,
                 '-y'] # (optional) overwrite output file if it exists]
             
         if skip:
@@ -299,17 +306,19 @@ class MovieMaker:
         if duration:
             command += ['-t', duration]
 
-        command += ['-i', filename, # The imput comes from a pipe
+        command += ['-i', src, # The imput comes from a pipe
                 '-vf', 'fps={},scale=-1:-1:flags=lanczos,palettegen'.format(fps),
                 'palette.png']
 
         pipe = sp.Popen(command, 
-
                         stdout=sp.PIPE, #, 
                         stdin=sp.PIPE) 
                         #bufsize=10**8)
 
-        command = [self.FFMPEG_EXE,
+        pipe.stdin.close()
+        pipe.communicate()
+
+        command = [FFMPEG_EXE,
                 '-y'] # (optional) overwrite output file if it exists]
             
         if skip:
@@ -318,36 +327,32 @@ class MovieMaker:
         if duration:
             command += ['-t', duration]
 
-        command += ['-i', filename, # The imput comes from a pipe
+        command += ['-i', src, # The imput comes from a pipe
                 '-i', 'palette.png', 
                 '-filter_complex', 'fps={},scale=-1:-1:flags=lanczos [x]; [x][1:v] paletteuse'.format(fps),
-                filename.replace('mp4','gif')]
-
-        print(" ".join(command))
+                out]
 
         pipe = sp.Popen(command, 
-                        # shell=True,
-                        # stdin=sp.PIPE,
                         stdout=sp.PIPE,
                         bufsize=10**8) 
 
 
 if __name__ == '__main__':
     mm = MovieMaker(r"C:\Users\kistas\PycharmProjects\MovieMaker\test.mp4")
-    # x0 = np.linspace(0, 4*np.pi, 1000)
+    x0 = np.linspace(0, 4*np.pi, 1000)
 
-    # for i in range(0, x0.size, 10):
-    #     fig = plt.figure(figsize=(12,7), facecolor='white')
+    for i in range(0, x0.size, 10):
+        fig = plt.figure(figsize=(12,7), facecolor='white')
         
-    #     plt.plot(x0[:i], np.sin(2 * x0[:i]))
-    #     plt.xlim([0, x0.max()])
-    #     plt.ylim([-1.2, 1.2])
+        plt.plot(x0[:i], np.sin(2 * x0[:i]))
+        plt.xlim([0, x0.max()])
+        plt.ylim([-1.2, 1.2])
         
-    #     mm.addFigureToCache(fig)
+        mm.addFigureToCache(fig)
 
-    # t = Title("My fancy sine plot", shape=mm)
+    t = Title("My fancy sine plot", shape=mm)
 
-    # mm.addTitle(t.create())
+    mm.addTitle(t.create())
 
-    # mm.writeCache()
-    mm.convertMovie2GIF()
+    mm.writeCache()
+    mm.toGIF()
