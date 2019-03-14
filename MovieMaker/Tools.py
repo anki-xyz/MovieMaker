@@ -126,7 +126,12 @@ class Title:
         self.font_color = font_color
         self.font_size = font_size
         self.wrap_width = wrap_width
-        self.shape = shape
+
+        if type(shape) == tuple:
+            self.shape = shape if len(shape) == 2 else shape[:2]
+        
+        if type(shape) == MovieMaker:
+            self.shape = shape.shape[:2][::-1]
         
         self.total_frames = (fadeIn+fadeOut+stay)*fps
         
@@ -201,6 +206,9 @@ class MovieMaker:
     
     def addFigureToCache(self, fig, autoclose=True):
         self.cache.append(self._get_image_from_figure(fig, autoclose))
+
+    def addImageToCache(self, im):
+        self.cache.append(im.tobytes())    
     
     def writeFigure(self, fig, autoclose=True):
         im = self._get_image_from_figure(fig, autoclose)
@@ -268,3 +276,78 @@ class MovieMaker:
                         stdout=sp.PIPE, 
                         stdin=sp.PIPE, 
                         bufsize=10**8)
+
+    def cacheToArray(self):
+        arr = []
+
+        for e in self.cache:
+            np
+            arr.append(np.frombuffer(e, dtype=np.uint8).reshape(self.shape))
+
+        return np.array(arr, dtype=np.uint8)
+
+    def convertMovie2GIF(self, filename=None, skip=None, duration=None, fps=10):
+        if filename is None:
+            filename = self.filename
+
+        command = [self.FFMPEG_EXE,
+                '-y'] # (optional) overwrite output file if it exists]
+            
+        if skip:
+            command += ['-ss', skip]
+
+        if duration:
+            command += ['-t', duration]
+
+        command += ['-i', filename, # The imput comes from a pipe
+                '-vf', 'fps={},scale=-1:-1:flags=lanczos,palettegen'.format(fps),
+                'palette.png']
+
+        pipe = sp.Popen(command, 
+
+                        stdout=sp.PIPE, #, 
+                        stdin=sp.PIPE) 
+                        #bufsize=10**8)
+
+        command = [self.FFMPEG_EXE,
+                '-y'] # (optional) overwrite output file if it exists]
+            
+        if skip:
+            command += ['-ss', skip]
+
+        if duration:
+            command += ['-t', duration]
+
+        command += ['-i', filename, # The imput comes from a pipe
+                '-i', 'palette.png', 
+                '-filter_complex', 'fps={},scale=-1:-1:flags=lanczos [x]; [x][1:v] paletteuse'.format(fps),
+                filename.replace('mp4','gif')]
+
+        print(" ".join(command))
+
+        pipe = sp.Popen(command, 
+                        # shell=True,
+                        # stdin=sp.PIPE,
+                        stdout=sp.PIPE,
+                        bufsize=10**8) 
+
+
+if __name__ == '__main__':
+    mm = MovieMaker(r"C:\Users\kistas\PycharmProjects\MovieMaker\test.mp4")
+    # x0 = np.linspace(0, 4*np.pi, 1000)
+
+    # for i in range(0, x0.size, 10):
+    #     fig = plt.figure(figsize=(12,7), facecolor='white')
+        
+    #     plt.plot(x0[:i], np.sin(2 * x0[:i]))
+    #     plt.xlim([0, x0.max()])
+    #     plt.ylim([-1.2, 1.2])
+        
+    #     mm.addFigureToCache(fig)
+
+    # t = Title("My fancy sine plot", shape=mm)
+
+    # mm.addTitle(t.create())
+
+    # mm.writeCache()
+    mm.convertMovie2GIF()
