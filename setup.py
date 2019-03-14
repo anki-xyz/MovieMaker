@@ -6,4 +6,4 @@ setup(name='MovieMaker',
       author='Andreas Kist',
       author_email='me@anki.xyz',
       packages=find_packages(),
-      install_requires=['numpy', 'Pillow', 'matplotlib', 'subprocess', 'textwrap'])
+      install_requires=['numpy', 'Pillow', 'matplotlib'])
