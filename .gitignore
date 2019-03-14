@@ -3,3 +3,5 @@ MovieMaker.egg-info/SOURCES.txt
 MovieMaker.egg-info/dependency_links.txt
 MovieMaker.egg-info/requires.txt
 MovieMaker.egg-info/top_level.txt
+MovieMaker/__pycache__/__init__.cpython-36.pyc
+MovieMaker/__pycache__/MovieMaker.cpython-36.pyc
