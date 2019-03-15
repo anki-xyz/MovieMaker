@@ -84,7 +84,9 @@ class hImageIo(Handler):
         self.crf = quality
 
     def open(self):
-        self.h = io.get_writer(self.filename)
+        self.h = io.get_writer(self.filename, 
+                fps=self.fps,
+                codec=self.codec)
 
     def write(self, im):
         self.h.append_data(im)

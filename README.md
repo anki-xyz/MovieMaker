@@ -79,7 +79,7 @@ Here's the gif:
 ![The nice sine plot movie as gif][gif]
 
 The above code needs on my machine 25.28 s with ```pipe``` handler,
-and 38.08 seconds with ```imageio``` handler. 
+and 21.78 seconds with ```imageio``` handler. 
 
 # Todo
 

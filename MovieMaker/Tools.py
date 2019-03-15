@@ -589,7 +589,7 @@ def movie2GIF(src,
 if __name__ == '__main__':
     from time import time
 
-    for handler in ['io', 'pipe']:
+    for handler in ['io']:
         t0 = time()    
 
         mm = MovieMaker("test.mp4", handler=handler)
