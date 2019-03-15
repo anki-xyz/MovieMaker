@@ -51,7 +51,9 @@ mm = MovieMaker(r"C:\path\to\file\test.mp4")
 x0 = np.linspace(0, 4*np.pi, 1000)
 
 for i in range(0, x0.size, 10):
-    fig = plt.figure(figsize=(12,7), facecolor='white')
+    fig = plt.figure(figsize=(12,7), 
+                     facecolor='white', 
+                     dpi=96) # ensures that it is divisible by 16(!)
     
     plt.plot(x0[:i], np.sin(2 * x0[:i]))
     plt.xlim([0, x0.max()])
@@ -75,6 +77,9 @@ mm.toGIF()
 Here's the gif:
 
 ![The nice sine plot movie as gif][gif]
+
+The above code needs on my machine 25.28 s with ```pipe``` handler,
+and 38.08 seconds with ```imageio``` handler. 
 
 # Todo
 

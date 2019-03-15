@@ -107,9 +107,10 @@ def writeCenteredTextOnImage(im,
 class Title:
     def __init__(self, 
                  title,
-                 fadeIn=1, 
-                 fadeOut=1, 
-                 stay=3, 
+                 fadeIn=1., 
+                 fadeOut=1., 
+                 stay=3., 
+                 pad=0.5,
                  fps=30, 
                  background_color=(0, 0, 0), 
                  font_face='arial.ttf',
@@ -117,7 +118,42 @@ class Title:
                  font_size=50,
                  wrap_width=None,
                  shape=(400, 400)):
+        """Creates title page
         
+        Parameters
+        ----------
+        title : str
+            Text to be written on page
+        fadeIn : float, optional
+            time text fades in in seconds (the default is 1)
+        fadeOut : float, optional
+            time text fades out in seconds (the default is 1)
+        stay : float, optional
+            time text stays in seconds (the default is 3)
+        pad : float, optional
+            time at beginning and end where only background is shown in seconds
+            (the default is 0.5)
+        fps : int, optional
+            frames per second (the default is 30)
+        background_color : tuple, optional
+            background color in RGB (0...255) 
+            (the default is (0, 0, 0), which is black)
+        font_face : str, optional
+            font face, such as arial or verdana (the default is 'arial.ttf')
+        font_color : tuple, optional
+            font color in RGB (0...255) 
+            (the default is (255, 255, 255), which is white)
+        font_size : int, optional
+            font size of text (the default is 50)
+        wrap_width : int, optional
+            defines the length of a single line 
+            (the default is None, which does not break lines)
+        shape : tuple, optional
+            shape of title page (same as movie)
+            (the default is (400, 400))
+        
+        """
+
         self.title = title
         self.fadeIn = fadeIn
         self.fadeOut = fadeOut
@@ -128,6 +164,7 @@ class Title:
         self.font_color = font_color
         self.font_size = font_size
         self.wrap_width = wrap_width
+        self.pad = pad
 
         if type(shape) == tuple:
             self.shape = shape if len(shape) == 2 else shape[:2]
@@ -135,7 +172,7 @@ class Title:
         if type(shape) == MovieMaker:
             self.shape = shape.shape[:2][::-1]
         
-        self.total_frames = (fadeIn+fadeOut+stay)*fps
+        self.total_frames = int((fadeIn+fadeOut+stay+pad*2)*fps)
         
         self.slideshow = None
 
@@ -149,20 +186,21 @@ class Title:
                                       font_size=self.font_size,
                                       return_ndarray=True)
         
-        slideshow = np.zeros((self.total_frames, ) + im.shape, dtype=np.uint8)
+        slideshow = np.ones((self.total_frames, ) + im.shape, dtype=np.uint8)
+        slideshow[:,:,:] = self.background_color
         
-        c = 0
+        c = int(self.pad * self.fps)
         
         # fadeIn
-        for i in range(self.fadeIn*self.fps):
+        for i in range(int(self.fadeIn*self.fps)):
             slideshow[c] = im * (i / (self.fadeIn*self.fps))
             c += 1
             
-        for _ in range(self.stay*self.fps):
+        for _ in range(int(self.stay*self.fps)):
             slideshow[c] = im
             c += 1
             
-        for i in range(self.fadeOut*self.fps):
+        for i in range(int(self.fadeOut*self.fps)):
             slideshow[c] = im * (1. - i / (self.fadeOut*self.fps))
             c += 1
             
@@ -549,21 +587,30 @@ def movie2GIF(src,
 
 
 if __name__ == '__main__':
-    mm = MovieMaker("test.mp4", handler='io')
-    x0 = np.linspace(0, 4*np.pi, 1000)
+    from time import time
 
-    for i in range(0, x0.size, 10):
-        fig = plt.figure(figsize=(12,7), facecolor='white')
-        
-        plt.plot(x0[:i], np.sin(2 * x0[:i]))
-        plt.xlim([0, x0.max()])
-        plt.ylim([-1.2, 1.2])
-        
-        mm.addFigureToCache(fig)
+    for handler in ['io', 'pipe']:
+        t0 = time()    
 
-    t = Title("My fancy sine plot", shape=mm)
+        mm = MovieMaker("test.mp4", handler=handler)
+        x0 = np.linspace(0, 4*np.pi, 1000)
 
-    mm.addTitle(t.create())
+        for i in range(0, x0.size, 10):
+            fig = plt.figure(figsize=(12,7), 
+                             facecolor='white', 
+                             dpi=96)
+            
+            plt.plot(x0[:i], np.sin(2 * x0[:i]))
+            plt.xlim([0, x0.max()])
+            plt.ylim([-1.2, 1.2])
+            
+            mm.addFigureToCache(fig)
 
-    mm.writeCache()
-    mm.toGIF()
+        t = Title("My fancy sine plot", shape=mm)
+
+        mm.addTitle(t.create())
+
+        mm.writeCache()
+        mm.toGIF()
+
+        print(handler, 'took {:.2f} seconds!'.format(time()-t0))
