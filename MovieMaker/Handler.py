@@ -87,7 +87,7 @@ class hImageIo(Handler):
         self.h = io.get_writer(self.filename)
 
     def write(self, im):
-        self.h.write(im)
+        self.h.append_data(im)
 
     def close(self):
         if self.h:

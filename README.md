@@ -1,7 +1,7 @@
 # MovieMaker
 
-The MovieMaker can create movies using ffmpeg.
-You can provide a ```Figure``` object from Matplotlib or just single numpy frames.
+The MovieMaker can create movies using [imageio](https://github.com/imageio/imageio) or directly [ffmpeg](https://www.ffmpeg.org/).
+You can provide a ```Figure``` object from [Matplotlib](https://matplotlib.org/) or just single [numpy](http://www.numpy.org/) arrays in RGB or grayscale.
 
 The MovieMaker class provides two options
 
@@ -10,14 +10,26 @@ The MovieMaker class provides two options
 
 Further, you can add some title pages (doesn't have to be a title though)
 with nice fade in and fade out effect. For ultimate flexibility you can return
-the cache (everything is stored as ```str```) as a numpy array.
+the cache as a numpy array (internally, the cache is a ```list``` of ```np.ndarray```s).
 
 # Installation
+
+If you would like to use ImageIO, you need to install ```ffmpeg``` via the conda:
+
+```
+conda install ffmpeg -c conda-forge
+```
+
+or using imageio directly
+
+```python
+imageio.plugins.ffmpeg.download()
+```
 
 Clone the github repository and install it using
 
 ```
-    python -m pip install -e MovieMaker
+python -m pip install -e MovieMaker
 ```
 
 # Usage
@@ -56,7 +68,7 @@ mm.addTitle(t.create())
 mm.writeCache()
 
 # Create a GIF from the written file
-mm.convertMovie2GIF()
+mm.toGIF()
 
 ```
 
@@ -66,8 +78,7 @@ Here's the gif:
 
 # Todo
 
-The docstring needs to be added to each function 
-and I need to explain better two helper functions that are useful:
+I need to explain better two helper functions that are useful:
 
 * writeTextOnImage
 * writeCenteredTextOnImage
