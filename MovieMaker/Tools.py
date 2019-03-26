@@ -4,7 +4,7 @@ import textwrap
 import numpy as np
 import matplotlib.pyplot as plt
 import imageio as io
-from Handler import hPipe, hImageIo
+from .Handler import hPipe, hImageIo
 
 def writeTextOnImage(im, 
                      text, 
