@@ -42,7 +42,7 @@ def writeCenteredTextOnImage(im,
                              wrap_width=None,
                              pad=10,
                              font_face='arial.ttf', 
-                             font_color=(255,255,255), 
+                             font_color='#ffffff', 
                              font_size=18, 
                              return_ndarray='auto'):
     
@@ -76,7 +76,7 @@ def writeCenteredTextOnImage(im,
     font = ImageFont.truetype(font_face, font_size)
 
     # Compute line dimensions
-    line_dimensions = np.array([draw.textsize(line, font=font) for line in lines])
+    line_dimensions = np.array([draw.textsize(line, font=font, fill=font_color) for line in lines])
 
     # Compute height of first line
     line_h = H//2-(line_dimensions.mean(0)[1])*(1+line_dimensions.shape[0]/2)
