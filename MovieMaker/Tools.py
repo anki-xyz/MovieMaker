@@ -10,7 +10,7 @@ def writeTextOnImage(im,
                      text, 
                      position=(0,0), 
                      font_face='arial.ttf', 
-                     font_color=(255,255,255), 
+                     font_color='#ffffff', 
                      font_size=18, 
                      return_ndarray='auto'):
     
@@ -23,7 +23,7 @@ def writeTextOnImage(im,
         
     draw = ImageDraw.Draw(im)
     font = ImageFont.truetype(font_face, font_size)
-    draw.text(position, text, font=font)
+    draw.text(position, text, font=font, fill=font_color)
         
     # If numpy array is desired
     if return_ndarray and return_ndarray != 'auto':
